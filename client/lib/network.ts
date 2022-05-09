@@ -2,40 +2,6 @@
 import { io, Socket } from "socket.io-client";
 import { User } from '../@types';
 const RtcConfig = {
-    /*  iceServers: [
-         {
-             urls: 'stun:stun.l.google.com:19302'
-         },
-         {
-             urls: 'stun:global.stun.twilio.com:3478?transport=udp'
-         },
-         {
-             urls: 'turn:numb.viagenie.ca',
-             credentials: 'muazkh',
-             username: 'webrtc@live.com'
-         },
-         {
-             urls: 'turn:192.158.29.39:3478?transport=udp',
-             credentials: 'JZEOEt2V3Qb0y27GRntt2u2PAYA=',
-             username: '28224511:1379330808'
-         },
-         {
-             urls: 'turn:192.158.29.39:3478?transport=tcp',
-             credentials: 'JZEOEt2V3Qb0y27GRntt2u2PAYA=',
-             username: '28224511:1379330808'
-         },
-         {
-             urls: 'turn:turn.bistri.com:80',
-             credentials: 'homeo',
-             username: 'homeo'
-         },
-         {
-             urls: 'turn:turn.anyfirewall.com:443?transport=tcp',
-             credentials: 'webrtc',
-             username: 'webrtc'
-         }
-     ] */
-    // Using From https://www.metered.ca/tools/openrelay/
     "iceServers": [
         {
             urls: "stun:openrelay.metered.ca:80"
@@ -56,7 +22,6 @@ const RtcConfig = {
             credential: "openrelayproject"
         }
     ]
-
 }
 
 import SimplePeer from 'simple-peer'
@@ -149,7 +114,7 @@ export class Peer {
     //? Called in second user
     private handleOffer = (offer: any) => {
         console.log(' offer received');
-        this.local_peer = new SimplePeer({ initiator: false, trickle: false });
+        this.local_peer = new SimplePeer({ initiator: false, trickle: false, config: RtcConfig });
         this.local_peer.signal(offer.detail);
         this.local_peer.on('signal', answer => {
             console.log('answer');
@@ -166,13 +131,15 @@ export class Peer {
     }
 
     private onMessage = (data: Uint8Array) => {
-        
+        console.log("message ");
+        console.log(data.toString());
     }
     //? Called in second user
     private handlePreviousUser = (usr: { detail: User }) => {
         console.log("on previous user");
         this.remote_peer = usr.detail;
         this.is_initiator = false;
+        
     }
     //* Called in initiator
     private handleAnswer = (answer: any) => {
@@ -195,7 +162,7 @@ export class Peer {
             console.log('new user joined', this.remote_peer);
             this.local_peer = new SimplePeer({
                 initiator: this.is_initiator, trickle: false,
-                config: { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:global.stun.twilio.com:3478?transport=udp' }] },
+                config: RtcConfig
             });
             this.local_peer.on("connect", this.handleConnection);
             this.local_peer.on("signal", offer => {
@@ -208,3 +175,4 @@ export class Peer {
         }
     }
 }
+

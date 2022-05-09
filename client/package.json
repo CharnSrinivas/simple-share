@@ -9,12 +9,14 @@
   },
   "dependencies": {
     "@types/simple-peer": "^9.11.4",
+    "@types/streamsaver": "^2.0.1",
     "@types/uuid": "^8.3.4",
     "next": "12.1.6",
     "react": "^17.0.2",
     "react-dom": "^17.0.2",
     "simple-peer": "^9.11.1",
     "socket.io-client": "^4.5.0",
+    "streamsaver": "^2.0.6",
     "uuid": "^8.3.2"
   },
   "devDependencies": {

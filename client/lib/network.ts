@@ -1,26 +1,20 @@
-
 import { io, Socket } from "socket.io-client";
-import { User } from '../@types';
+import { FileInfo, User } from '../@types';
 const RtcConfig = {
     "iceServers": [
         {
             urls: "stun:openrelay.metered.ca:80"
         },
-        {
-            urls: "turn:openrelay.metered.ca:80",
-            username: "openrelayproject",
-            credential: "openrelayproject"
-        },
-        {
-            urls: "turn:openrelay.metered.ca:443",
-            username: "openrelayproject",
-            credential: "openrelayproject"
-        },
-        {
-            urls: "turn:openrelay.metered.ca:443?transport=tcp",
-            username: "openrelayproject",
-            credential: "openrelayproject"
-        }
+        // {
+        //     urls: "turn:openrelay.metered.ca:80",
+        //     username: "openrelayproject",
+        //     credential: "openrelayproject"
+        // },
+        // {
+        //     urls: "turn:openrelay.metered.ca:443",
+        //     username: "openrelayproject",
+        //     credential: "openrelayproject"
+        // },
     ]
 }
 
@@ -37,7 +31,6 @@ class Events {
 }
 
 export class ServerConnection {
-
     socket: Socket;
     room_id: string;
     usr_name: string;
@@ -47,14 +40,13 @@ export class ServerConnection {
         this.peer = null;
         this.room_id = room_id;
         this.usr_name = usr_name;
-        this.socket = io("http://localhost:3000")
+        this.socket = io("http://192.168.42.156:3000")
         this.socket.on("new-user-joined", this.onNewUserJoin);
         this.socket.on("previous-user", this.onPreviousUser);
         // this.socket.on("ice-candidate", this.onCandidateData);
         this.socket.on("offer", this.handleOffer);
         this.socket.on("answer", this.handleAnswer);
         this.socket.on("first-user", this.onFirstUser);
-
         this.joinRoom();
     }
     handleAnswer = (answer: any) => {
@@ -90,17 +82,17 @@ export class ServerConnection {
 }
 
 //* Last joined user will be the caller
-
 export class Peer {
-
     room_id: string;
     usr_name: string;
     server_conn: ServerConnection;
     is_initiator: boolean;
     local_peer?: SimplePeer.Instance;
     remote_peer?: User;
-
+    streamSaver?: any;
+    file_handler: FileHandler;
     constructor(room_id: string, usr_name: string) {
+        this.file_handler = new FileHandler(this);
         this.room_id = room_id;
         this.usr_name = usr_name;
         this.server_conn = new ServerConnection(room_id, usr_name);
@@ -123,23 +115,43 @@ export class Peer {
         })
         this.local_peer.on('connect', this.handleConnection);
     }
-    //* triggers on both
+    //* triggers on both peers when connection established
     private handleConnection = () => {
         if (!this.local_peer) throw new Error("Local peer is not connected !");
-        this.local_peer.send("this is test message ");
-        this.local_peer?.on('data', this.onMessage)
+        this.local_peer.send(JSON.stringify({ type: "hello", data: "this is test" }));
+        this.local_peer?.on('data', this.handleMessage)
+        this.local_peer.on('error', (err) => {
+            console.error(err);
+        })
     }
 
-    private onMessage = (data: Uint8Array) => {
-        console.log("message ");
-        console.log(data.toString());
+    private handleMessage = (data: Uint8Array) => {
+        if (data.toString().includes('type')) {
+            let recv_data = JSON.parse(data.toString());
+
+            if (recv_data['type'] === 'file-info') {
+                this.file_handler.handleFileInfo(recv_data['data'])
+            } else if (recv_data['type'] === 'file-end') {
+                this.file_handler.stopReceiving();
+            }
+        } else {
+            this.file_handler.onFileChunkReceiving(data);
+        }
+    }
+    sendFile = (file: File) => {
+        this.file_handler.sendFile(file);
+    }
+    sendData = (data: any) => {
+        if (!this.local_peer) {
+            throw new Error("Peer is not connected to send data");
+        }
+        this.local_peer.write(data);
     }
     //? Called in second user
     private handlePreviousUser = (usr: { detail: User }) => {
         console.log("on previous user");
         this.remote_peer = usr.detail;
         this.is_initiator = false;
-        
     }
     //* Called in initiator
     private handleAnswer = (answer: any) => {
@@ -168,7 +180,6 @@ export class Peer {
             this.local_peer.on("signal", offer => {
                 console.log('sending offer');
                 console.log(offer);
-                console.log("remote peer");
                 console.log(this.remote_peer);
                 this.server_conn.sendOffer(this.remote_peer!.id, offer);
             });
@@ -176,3 +187,115 @@ export class Peer {
     }
 }
 
+export class FileHandler {
+    private streamSaver?: any;
+    private file_info?: FileInfo;
+    private file_writer?: WritableStreamDefaultWriter;
+    private peer: Peer;
+    private bytes_received = 0;
+    private offset = 0;
+    file?: File;
+    chuck_size = 16 * 1000;//16 KB
+    constructor(peer: Peer) {
+        this.peer = peer;
+        import('streamsaver').then((d) => {
+            this.streamSaver = d;
+        })
+    }
+    get sent_percentage() {
+        if (this.file_info) {
+            return (this.offset / this.file_info.size) * 100;
+        }
+        return 0;
+    }
+    get recv_percentage() {
+        if (this.file_info) {
+            return (this.bytes_received / this.file_info.size) * 100;
+        } return 0;
+    }
+    onFileChunkReceiving = async (data: Uint8Array) => {
+        if (!this.streamSaver) {
+            const stream_saver = await import("streamsaver")
+            this.streamSaver = stream_saver;
+        }
+        if (!this.file_info) {
+            throw new Error("File info not found");
+        }
+        if (!this.file_writer) throw new Error("File writer is not defined");
+        this.bytes_received += data.length;
+        this.file_writer.write(data).then((value) => {
+            console.log('received:  ' + this.recv_percentage);
+        });
+    }
+    stopReceiving = () => {
+        console.log("Stopped receiving");
+        this.file_writer!.close();
+        this.file = undefined;
+        this.bytes_received = 0;
+        this.file_info = undefined;
+        this.offset = 0;
+    }
+    handleFileInfo = (info: FileInfo) => {
+        console.log("file info received: ");
+        console.log(info);
+        this.file_writer = (this.streamSaver.createWriteStream(info.name) as WritableStream<any>).getWriter();
+        this.file_info = info;
+    }
+    readChunk = () => {
+        if (this.offset >= this.file_info!.size) {
+            this.peer.sendData(JSON.stringify({ type: "file-end", data: this.file_info }))
+            this.file = undefined;
+            this.bytes_received = 0;
+            this.file_info = undefined;
+            this.offset = 0;
+            return;
+        }
+        if (!this.file) throw new Error("File not found to read!");
+        this.file.slice(this.offset, this.offset + this.chuck_size).arrayBuffer()
+            .then(file_chunk => {
+                this.onChunk(file_chunk);
+            })
+    }
+
+    onChunk = (file_chunk: ArrayBuffer) => {
+        // console.log(file_chunk);
+        // console.log("offset: " + this.offset);
+        this.offset += this.chuck_size;
+        this.sendChuck(new Uint8Array(file_chunk));
+        this.readChunk();
+    }
+    sendFile = (file: File) => {
+        console.log(file);
+        this.file = file;
+        this.file_info = { lastModified: file.lastModified, name: file.name, size: file.size, type: file.type };
+        this.sendFileInfo();
+        this.readChunk()
+        // const file_reader: ReadableStreamDefaultReader = ((file.stream() as any).getReader());
+        // file_reader.read().then(({ done, value: file_data }) => {
+        //     handleReading(done, file_data);
+        // })
+        // const handleReading = (done: boolean, file_data: Uint8Array) => {
+        //     if (done) {
+        //         console.log("sending file ended message");
+        //         this.peer.sendData(JSON.stringify({ type: "file-ended", data: this.file_info }));
+        //         return;
+        //     }
+        //     this.send_progress = (this.bytes_sent / this.file_info!.size) * 100;
+        //     this.sendChuck(file_data);
+        //     setTimeout(() => {
+        //         file_reader.read().then(({ done, value: file_data }) => {
+        //             handleReading(done, file_data)
+        //         })
+        //     }, 500)
+        // }
+    }
+    sendChuck = (data: Uint8Array) => {
+        console.log("sending file:  " + this.sent_percentage + "%");
+        this.peer.sendData(data);
+    }
+    sendFileInfo = () => {
+        console.log("sending file info: ");
+        console.log(this.file_info);
+        this.peer.sendData(JSON.stringify({ type: "file-info", data: this.file_info }));
+    }
+}

@@ -133,6 +133,8 @@ export class Peer {
                 this.file_handler.handleFileInfo(recv_data['data'])
             } else if (recv_data['type'] === 'file-end') {
                 this.file_handler.stopReceiving();
+            } else if (recv_data['type'] === 'chunk-delivered') {
+                this.file_handler.ChunkDelivered(recv_data['data']['chunk_no'])
             }
         } else {
             this.file_handler.onFileChunkReceiving(data);
@@ -194,8 +196,10 @@ export class FileHandler {
     private peer: Peer;
     private bytes_received = 0;
     private offset = 0;
-    file?: File;
-    chuck_size = 16 * 1000;//16 KB
+    private file?: File;
+    private chuck_size = 16 * 1000;//16 KB
+    private chunks_received = 0;
+    private chunks_sent = 0;
     constructor(peer: Peer) {
         this.peer = peer;
         import('streamsaver').then((d) => {
@@ -221,11 +225,17 @@ export class FileHandler {
         if (!this.file_info) {
             throw new Error("File info not found");
         }
+
         if (!this.file_writer) throw new Error("File writer is not defined");
         this.bytes_received += data.length;
-        this.file_writer.write(data).then((value) => {
+        this.file_writer.write(data).then(() => {
+            this.chunks_received++;
             console.log('received:  ' + this.recv_percentage);
+            this.sendChuckReceived();
         });
+    }
+    private sendChuckReceived = () => {
+        this.peer.sendData(JSON.stringify({ type: "chunk-delivered", data: { chunk_no: this.chunks_received } }));
     }
     stopReceiving = () => {
         console.log("Stopped receiving");
@@ -241,7 +251,11 @@ export class FileHandler {
         this.file_writer = (this.streamSaver.createWriteStream(info.name) as WritableStream<any>).getWriter();
         this.file_info = info;
     }
-    readChunk = () => {
+    ChunkDelivered = (chunk_no: number) => {
+        console.log('sent: ' + this.chunks_sent + "  delivered: " + chunk_no);
+        this.readChunk();
+    }
+    private readChunk = () => {
         if (this.offset >= this.file_info!.size) {
             this.peer.sendData(JSON.stringify({ type: "file-end", data: this.file_info }))
             this.file = undefined;
@@ -256,13 +270,9 @@ export class FileHandler {
                 this.onChunk(file_chunk);
             })
     }
-
-    onChunk = (file_chunk: ArrayBuffer) => {
-        // console.log(file_chunk);
-        // console.log("offset: " + this.offset);
+    private onChunk = (file_chunk: ArrayBuffer) => {
         this.offset += this.chuck_size;
         this.sendChuck(new Uint8Array(file_chunk));
-        this.readChunk();
     }
     sendFile = (file: File) => {
         console.log(file);
@@ -270,28 +280,11 @@ export class FileHandler {
         this.file_info = { lastModified: file.lastModified, name: file.name, size: file.size, type: file.type };
         this.sendFileInfo();
         this.readChunk()
-        // const file_reader: ReadableStreamDefaultReader = ((file.stream() as any).getReader());
-        // file_reader.read().then(({ done, value: file_data }) => {
-        //     handleReading(done, file_data);
-        // })
-        // const handleReading = (done: boolean, file_data: Uint8Array) => {
-        //     if (done) {
-        //         console.log("sending file ended message");
-        //         this.peer.sendData(JSON.stringify({ type: "file-ended", data: this.file_info }));
-        //         return;
-        //     }
-        //     this.send_progress = (this.bytes_sent / this.file_info!.size) * 100;
-        //     this.sendChuck(file_data);
-        //     setTimeout(() => {
-        //         file_reader.read().then(({ done, value: file_data }) => {
-        //             handleReading(done, file_data)
-        //         })
-        //     }, 500)
-        // }
     }
     sendChuck = (data: Uint8Array) => {
         console.log("sending file:  " + this.sent_percentage + "%");
         this.peer.sendData(data);
+        this.chunks_sent++;
     }
     sendFileInfo = () => {
         console.log("sending file info: ");

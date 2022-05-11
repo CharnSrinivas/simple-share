@@ -4,8 +4,7 @@
   "description": "File transfer web app using WebRTC peer to peer network.",
   "main": "index.js",
   "scripts": {
-    "build-sever": "cd server && npm run build",
-    "start-server": "cd server && npm start"
+    
   },
   "repository": {
     "type": "git",

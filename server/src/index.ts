@@ -52,7 +52,9 @@ try {
             io.to(payload.target).emit("ice-candidate", payload.candidate);
         })
     });
-    
+    server.listen(port, () => {
+        console.log(`Signaling Server running on port: ${port}`);
+    });
 } catch (error) {
     console.log(error);
 }

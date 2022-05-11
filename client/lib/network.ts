@@ -126,9 +126,9 @@ export class Peer {
     }
 
     private handleMessage = (data: Uint8Array) => {
-        if (data.toString().includes('type')) {
+        if (data.toString().includes('"type":')) {
+            console.log(data.toString());
             let recv_data = JSON.parse(data.toString());
-
             if (recv_data['type'] === 'file-info') {
                 this.file_handler.handleFileInfo(recv_data['data'])
             } else if (recv_data['type'] === 'file-end') {
@@ -241,6 +241,7 @@ export class FileHandler {
         console.log("Stopped receiving");
         this.file_writer!.close();
         this.file = undefined;
+        // guarantee
         this.bytes_received = 0;
         this.file_info = undefined;
         this.offset = 0;

@@ -1,5 +1,6 @@
 import { io, Socket } from "socket.io-client";
 import { FileInfo, User } from '../@types';
+import {SignalingServerUrl} from '../config'
 const RtcConfig = {
     "iceServers": [
         {
@@ -40,7 +41,7 @@ export class ServerConnection {
         this.peer = null;
         this.room_id = room_id;
         this.usr_name = usr_name;
-        this.socket = io("http://192.168.42.156:3000")
+        this.socket = io(SignalingServerUrl)
         this.socket.on("new-user-joined", this.onNewUserJoin);
         this.socket.on("previous-user", this.onPreviousUser);
         // this.socket.on("ice-candidate", this.onCandidateData);

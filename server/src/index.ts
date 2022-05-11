@@ -1,13 +1,14 @@
 import express from 'express'
 import http from 'http'
 import socket from 'socket.io'
+import cors from 'cors'
 const port = 3000;
 const app = express();
 
-// app.get("/hi", (req, res) => {
-//     res.send("<h1>Hello</h1>")
-// })
-
+app.get("/hi", (req, res) => {
+    res.send("<h1>Hello</h1>")
+})
+app.use(cors({ origin: "*" }))
 const server = http.createServer(app);
 const io = new socket.Server(server, { cors: { origin: "*" } });
 const rooms: { [key: string]: { name: string, id: string }[] } = {};
@@ -30,7 +31,7 @@ try {
             }
             const previous_user = rooms[room_id].find((user, index) => user.id !== socket.id);
             console.log(previous_user);
-            
+
             if (previous_user) {
                 socket.to(previous_user.id).emit("new-user-joined", { name: payload['name'], id: socket.id });
                 socket.emit("previous-user", previous_user);

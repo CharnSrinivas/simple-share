@@ -2,7 +2,7 @@ import express from 'express'
 import http from 'http'
 import socket from 'socket.io'
 import cors from 'cors'
-const port = 3000;
+const port = process.env.PORT || 3000 ;
 
 try {
     const app = express();

@@ -1,0 +1,20 @@
+{
+  "name": "share-app",
+  "version": "0.0.1",
+  "description": "File transfer web app using WebRTC peer to peer network.",
+  "main": "index.js",
+  "scripts": {
+    "build-sever": "cd server && npm run build",
+    "start-server": "cd server && npm start"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/CharnSrinivas/simple-share.git"
+  },
+  "author": "CHARAN SRINIVAS",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/CharnSrinivas/simple-share/issues"
+  },
+  "homepage": "https://github.com/CharnSrinivas/simple-share#readme"
+}

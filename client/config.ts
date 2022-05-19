@@ -1,2 +1,3 @@
-export const SignalingServerUrl =  "https://simple-share-app.herokuapp.com"
-//  'http://192.168.42.156:3000';
+export const SignalingServerUrl =
+ 'http://192.168.42.156:3000';
+//   "https://simple-share-app.herokuapp.com"

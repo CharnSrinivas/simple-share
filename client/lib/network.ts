@@ -1,6 +1,6 @@
 import { io, Socket } from "socket.io-client";
 import { FileInfo, User } from '../@types';
-import {SignalingServerUrl} from '../config'
+import { SignalingServerUrl } from '../config'
 const RtcConfig = {
     "iceServers": [
         {
@@ -20,7 +20,7 @@ const RtcConfig = {
 }
 
 import SimplePeer from 'simple-peer'
-class Events {
+export class Events {
 
     static fire(type: string, detail?: any) {
         window.dispatchEvent(new CustomEvent(type, { detail: detail }));
@@ -33,13 +33,12 @@ class Events {
 
 export class ServerConnection {
     socket: Socket;
-    room_id: string;
+    room_id?: string;
     usr_name: string;
     peer: User | null;
 
-    constructor(room_id: string, usr_name: string) {
+    constructor( usr_name: string,room_id?:string) {
         this.peer = null;
-        this.room_id = room_id;
         this.usr_name = usr_name;
         this.socket = io(SignalingServerUrl)
         this.socket.on("new-user-joined", this.onNewUserJoin);
@@ -48,8 +47,19 @@ export class ServerConnection {
         this.socket.on("offer", this.handleOffer);
         this.socket.on("answer", this.handleAnswer);
         this.socket.on("first-user", this.onFirstUser);
-        this.joinRoom();
+        this.socket.emit('room-id');
+        this.room_id = room_id;
+        if(!room_id){
+            this.socket.on('room-id', (_room_id: string) => {
+                this.room_id = _room_id;
+                console.log(_room_id);
+                this.joinRoom();
+            })
+        }else{
+            this.joinRoom()
+        }
     }
+
     handleAnswer = (answer: any) => {
         Events.fire("on-answer", answer);
     }
@@ -66,6 +76,7 @@ export class ServerConnection {
         }
         const payload = { "name": this.usr_name, "room_id": this.room_id };
         this.socket.emit("join-room", payload);
+        // Events.fire('on-room-join')
     }
     onFirstUser = () => {
         Events.fire("on-first-user")
@@ -84,7 +95,6 @@ export class ServerConnection {
 
 //* Last joined user will be the caller
 export class Peer {
-    room_id: string;
     usr_name: string;
     server_conn: ServerConnection;
     is_initiator: boolean;
@@ -92,11 +102,10 @@ export class Peer {
     remote_peer?: User;
     streamSaver?: any;
     file_handler: FileHandler;
-    constructor(room_id: string, usr_name: string) {
+    constructor( usr_name: string,room_id?:string) {
         this.file_handler = new FileHandler(this);
-        this.room_id = room_id;
         this.usr_name = usr_name;
-        this.server_conn = new ServerConnection(room_id, usr_name);
+        this.server_conn = new ServerConnection( usr_name,room_id);
         this.is_initiator = false;
         Events.on("on-first-user", this.handleFirstUser);
         Events.on("on-previous-user", this.handlePreviousUser)
@@ -119,17 +128,16 @@ export class Peer {
     //* triggers on both peers when connection established
     private handleConnection = () => {
         if (!this.local_peer) throw new Error("Local peer is not connected !");
-        this.local_peer.send(JSON.stringify({ type: "hello", data: "this is test" }));
+        // this.local_peer.send(JSON.stringify({ type: "hello", data: "this is test" }));
         this.local_peer?.on('data', this.handleMessage)
         this.local_peer.on('error', (err) => {
             console.error(err);
         })
     }
-
     private handleMessage = (data: Uint8Array) => {
-        if (data.toString().includes('"type":')) {
-            console.log(data.toString());
-            let recv_data = JSON.parse(data.toString());
+        const str_data = data.toString();
+        if (str_data.includes('"type":')) {
+            let recv_data = JSON.parse(str_data);
             if (recv_data['type'] === 'file-info') {
                 this.file_handler.handleFileInfo(recv_data['data'])
             } else if (recv_data['type'] === 'file-end') {
@@ -191,6 +199,7 @@ export class Peer {
 }
 
 export class FileHandler {
+
     private streamSaver?: any;
     private file_info?: FileInfo;
     private file_writer?: WritableStreamDefaultWriter;

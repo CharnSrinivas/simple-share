@@ -18,24 +18,23 @@ export default function Room() {
         if (!name || !id) return;
         peer = new Peer(name, id);
         const handleOnChunkDelivered = (chunk_no: number) => {
-            console.log(send_files);
+            // console.log(send_files);
             if (!peer || send_files.length <= 0) return;
             send_files[0].sent_percentage = peer.file_handlers.sent_percentage;
-            console.log(peer.file_handlers.sent_percentage);
+            // console.log(peer.file_handlers.sent_percentage);
             setValue(Math.random())
         }
 
         const handleOnNewFile = (file_info: FileInfo) => {
             recv_files = [{ file_info: file_info, recv_percentage: 0 }].concat(recv_files);
             setValue(Math.random())
-            console.log(recv_files);
+            // console.log(recv_files);
 
         }
         const handleOnFileChunkReceived = (file_info: FileInfo) => {
-            console.log(recv_files);
             if (!peer || recv_files.length <= 0) return;
             recv_files[0].recv_percentage = peer.file_handlers.recv_percentage;
-            console.log(peer.file_handlers.recv_percentage);
+            // console.log(peer.file_handlers.recv_percentage);
             setValue(Math.random())
         }
         peer.file_handlers.onChunkDelivered = handleOnChunkDelivered;
@@ -43,12 +42,12 @@ export default function Room() {
         peer.file_handlers.onChunkReceived = handleOnFileChunkReceived;
         //* Runs on joiner
         Events.on('on-previous-user', (user: { detail: User }) => {
-            console.log(peer?.server_conn.room_id);
-            console.log(user.detail);
+            // console.log(peer?.server_conn.room_id);
+            // console.log(user.detail);
             setId(id!);
         })
         Events.on('on-connection-established', () => {
-            console.log('Joiner: connection-established');
+            // console.log('Joiner: connection-established');
             setIsConnected(true)
         })
     }, [])
@@ -59,7 +58,7 @@ export default function Room() {
         if (!file) return;
         peer?.sendFile(file);
         send_files = [{ file_info: { lastModified: file.lastModified, name: file.name, size: file.size, type: file.type }, sent_percentage: 0 }].concat(send_files);
-        console.log(send_files);
+        // console.log(send_files);
         setValue(Math.random());
     }
     return (

@@ -12,7 +12,7 @@ export default function Home() {
     console.log(name);
 
     if (!name) return;
-    router.push(`/room/?name=${name}`);
+    router.push(`/create/?name=${name}`);
   }
   const join = () => {
     let name_ele = document.getElementById('join-name') as HTMLInputElement;
@@ -20,9 +20,8 @@ export default function Home() {
     if (!name_ele || !id_ele) return;
     let name = name_ele.value;
     let id = id_ele.value;
-    console.log(name, id);
     if (!name) return;
-    router.push(`/room/?id=${id}&name=${name}`);
+    router.push(`/join/?id=${id}&name=${name}`);
   }
   return (
     <>

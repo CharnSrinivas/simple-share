@@ -25,6 +25,7 @@ try {
                 };
                 rooms[room_id].push({ name: payload['name'], id: socket.id });
             } else {
+                console.log("new room id : " + room_id);
                 rooms[room_id] = [{ name: payload['name'], id: socket.id }];
             }
             const previous_user = rooms[room_id].find((user, index) => user.id !== socket.id);
@@ -40,13 +41,13 @@ try {
             while (rooms[room_id]) {
                 room_id = Math.floor(Math.random() * 10000);
             }
-            console.log("new room id : " + room_id);
-
             socket.emit('room-id', room_id)
         })
         socket.on("offer", payload => {
-            console.log("offer");
             io.to(payload.target).emit("offer", payload.offer)
+        })
+        socket.on('connection-established', (payload: any) => {
+            io.to(payload.target).emit('connection-established', socket.id)
         })
         socket.on("answer", payload => {
             console.log('answer');

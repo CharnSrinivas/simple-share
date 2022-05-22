@@ -1,5 +1,5 @@
 {
-  "name": "share-app",
+  "name": "GlobeShare",
   "version": "0.0.1",
   "description": "File transfer web app using WebRTC peer to peer network.",
   "main": "index.js",

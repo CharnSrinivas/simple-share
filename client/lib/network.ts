@@ -1,6 +1,8 @@
 import { io, Socket } from "socket.io-client";
 import { FileInfo, User } from '../@types';
 import { SignalingServerUrl } from '../config'
+import SimplePeer from 'simple-peer';
+
 const RtcConfig = {
     "iceServers": [
         {
@@ -19,7 +21,7 @@ const RtcConfig = {
     ]
 }
 
-import SimplePeer from 'simple-peer'
+
 export class Events {
 
     static fire(type: string, detail?: any) {
@@ -108,9 +110,9 @@ export class Peer {
     local_peer?: SimplePeer.Instance;
     remote_peer?: User;
     streamSaver?: any;
-    file_handlers: FileHandler;
+    file_handler: FileHandler;
     constructor(usr_name: string, room_id?: string) {
-        this.file_handlers = new FileHandler(this);
+        this.file_handler = new FileHandler(this);
         this.usr_name = usr_name;
         this.server_conn = new ServerConnection(usr_name, room_id);
         this.is_initiator = false;
@@ -144,23 +146,24 @@ export class Peer {
     }
     private handleMessage = (data: Uint8Array) => {
         const str_data = data.toString();
+
         if (str_data.includes('"type":')) {
             let recv_data = JSON.parse(str_data);
             if (recv_data['type'] === 'file-info') {
                 console.log(recv_data);
 
-                this.file_handlers.handleFileInfo(recv_data['data'])
+                this.file_handler.handleFileInfo(recv_data['data'])
             } else if (recv_data['type'] === 'file-end') {
-                this.file_handlers.stopReceiving();
+                this.file_handler.stopReceiving();
             } else if (recv_data['type'] === 'chunk-delivered') {
-                this.file_handlers.ChunkDelivered(recv_data['data']['chunk_no'])
+                this.file_handler.ChunkDelivered(recv_data['data']['chunk_no'])
             }
         } else {
-            this.file_handlers.onFileChunkReceiving(data);
+            this.file_handler.onFileChunkReceiving(data);
         }
     }
     sendFile = (file: File) => {
-        this.file_handlers.sendFile(file);
+        this.file_handler.sendFile(file);
     }
     sendData = (data: any) => {
         if (!this.local_peer) {
@@ -218,9 +221,10 @@ export class FileHandler {
     private bytes_received = 0;
     private offset = 0;
     private file?: File;
-    private chuck_size = 16 * 1000;//16 KB
+    private chuck_size = 250 * 1000;//2 MB
     private chunks_received = 0;
     private chunks_sent = 0;
+
 
     onChunkDelivered?: (chunk_no: number) => any;
     onFileEnd?: () => void;
@@ -230,6 +234,7 @@ export class FileHandler {
         this.peer = peer;
         import('streamsaver').then((d) => {
             this.streamSaver = d;
+            
         })
     }
     get sent_percentage() {
@@ -258,7 +263,7 @@ export class FileHandler {
         this.file_writer.write(data).then(() => {
             this.chunks_received++;
             if (this.onChunkReceived) this.onChunkReceived(this.file_info!);
-            console.log('received:  ' + this.recv_percentage);
+            // console.log('received:  ' + this.recv_percentage);
             this.sendChuckReceived();
         });
     }
@@ -268,7 +273,7 @@ export class FileHandler {
     stopReceiving = () => {
         Events.fire('on-file-end', this.file_info);
         if (this.onFileEnd) this.onFileEnd();
-        this.file_writer!.close();
+        this.file_writer?.close();
         this.file = undefined;
         this.bytes_received = 0;
         this.file_info = undefined;
@@ -282,12 +287,13 @@ export class FileHandler {
         this.file_info = info;
     }
     ChunkDelivered = (chunk_no: number) => {
-        console.log('sent: ' + this.chunks_sent + "  delivered: " + chunk_no);
-        Events.fire('on-chunk-delivered', { file_info: this.file_info, chunk_no })
+        // console.log('sent: ' + this.chunks_sent + "  delivered: " + chunk_no);
+        Events.fire('on-chunk-delivered', { file_info: this.file_info, chunk_no });
+        this.chunks_sent++;
         if (this.onChunkDelivered) { this.onChunkDelivered(chunk_no); }
         this.readChunk();
     }
-    private readChunk = () => {
+    private readChunk = async () => {
         if (this.offset >= this.file_info!.size) {
             this.peer.sendData(JSON.stringify({ type: "file-end", data: this.file_info }))
             this.file = undefined;
@@ -297,14 +303,14 @@ export class FileHandler {
             return;
         }
         if (!this.file) throw new Error("File not found to read!");
-        this.file.slice(this.offset, this.offset + this.chuck_size).arrayBuffer()
-            .then(file_chunk => {
-                this.onChunk(file_chunk);
-            })
+        let file_slice = this.file.slice(this.offset, this.offset + this.chuck_size);
+        let file_chunk = await file_slice.arrayBuffer();
+        let unit8_file_chunk = new Uint8Array(file_chunk);
+        this.onChunk(unit8_file_chunk);
     }
-    private onChunk = (file_chunk: ArrayBuffer) => {
+    private onChunk = (file_chunk: Uint8Array) => {
         this.offset += this.chuck_size;
-        this.sendChuck(new Uint8Array(file_chunk));
+        this.sendChuck((file_chunk));
     }
     sendFile = (file: File) => {
         this.file = file;
@@ -313,12 +319,10 @@ export class FileHandler {
         this.readChunk()
     }
     sendChuck = (data: Uint8Array) => {
-        console.log("sending file:  " + this.sent_percentage + "%");
+        // console.log("sending file:  " + this.sent_percentage + "%");
         this.peer.sendData(data);
-        this.chunks_sent++;
     }
     sendFileInfo = () => {
-        console.log("sending file info: ");
         console.log(this.file_info);
         this.peer.sendData(JSON.stringify({ type: "file-info", data: this.file_info }));
     }

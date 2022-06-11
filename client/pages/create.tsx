@@ -15,6 +15,11 @@ export default function Create() {
     const [_, setValue] = useState(0);
 
     useEffect(() => {
+
+        window.onunload = function () {
+            alert('Are you you want to leave this page?.');
+        }
+
         const parms = new URLSearchParams(window.location.search);
         const name = parms.get('name')
         if (!name) return;
@@ -30,9 +35,11 @@ export default function Create() {
         const handleOnChunkDelivered = (chunk_no: number) => {
             // console.log(send_files);
             if (!peer || send_files.length <= 0) return;
-            send_files[0].sent_percentage = peer.file_handlers.sent_percentage;
+            send_files[0].sent_percentage = peer.file_handler.sent_percentage;
             // console.log(peer.file_handlers.sent_percentage);
-            setValue(Math.random())
+            // console.log("max slice time = "+ peer.file_handler.max_slice_time);
+            // console.log("Max to buffer time = "+peer.file_handler.max_to_buffer_time);
+            setValue(Math.random());
         }
 
         const handleOnNewFile = (file_info: FileInfo) => {
@@ -44,14 +51,16 @@ export default function Create() {
         const handleOnFileChunkReceived = (file_info: FileInfo) => {
             // console.log(recv_files);
             if (!peer || recv_files.length <= 0) return;
-            recv_files[0].recv_percentage = peer.file_handlers.recv_percentage;
+            recv_files[0].recv_percentage = peer.file_handler.recv_percentage;
             // console.log(peer.file_handlers.recv_percentage);
+            // console.log("max slice time = "+ peer.file_handler.max_slice_time);
+            // console.log("Max to buffer time = "+peer.file_handler.max_to_buffer_time);
             setValue(Math.random())
         }
-        peer.file_handlers.onChunkDelivered = handleOnChunkDelivered;
-        peer.file_handlers.onNewFile = handleOnNewFile;
-        peer.file_handlers.onChunkReceived = handleOnFileChunkReceived;
-        
+        peer.file_handler.onChunkDelivered = handleOnChunkDelivered;
+        peer.file_handler.onNewFile = handleOnNewFile;
+        peer.file_handler.onChunkReceived = handleOnFileChunkReceived;
+
         Events.on('on-connection-established', () => {
             // console.log('Creator: connection-established');
             setIsConnected(true);
@@ -74,10 +83,10 @@ export default function Create() {
                 {
                     !connected &&
                     <div className='container flex items-center justify-center mx-auto  my-auto'>
-                        <div className=' w-[80%] lg:w-1/2 px-10  py-5 rounded-lg shadow-lg  dark:bg-gray-700 bg-white flex flex-col '>
+                        <div className=' w-[80%] lg:w-1/2 px-10  py-5 rounded-lg shadow-lg   bg-white flex flex-col '>
                             <svg
                                 role="status"
-                                className={`inline w-8 h-8 mr-2 text-gray-200 animate-spin dark:text-gray-600 fill-green-500 self-center ${connecting}`}
+                                className={`inline w-8 h-8 mr-2 text-gray-200 animate-spin fill-green-500 self-center ${connecting}`}
                                 viewBox="0 0 100 101"
                                 fill="none"
                                 xmlns="http://www.w3.org/2000/svg"
@@ -101,7 +110,7 @@ export default function Create() {
                                             {id}
                                         </h2>
                                     </span>
-                                    <p className="text-base leading-relaxed text-gray-500 dark:text-gray-400">
+                                    <p className="text-base leading-relaxed text-gray-500 -400">
                                         Ask your friend to join using your share id.
                                     </p>
                                 </>

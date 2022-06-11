@@ -12,6 +12,11 @@ export default function Room() {
     const [_, setValue] = useState(0);
 
     useEffect(() => {
+
+        window.onunload = function () {
+            alert('Are you you want to leave this page?.');
+        }
+
         const parms = new URLSearchParams(window.location.search);
         const name = parms.get('name')
         const id = parms.get('id');
@@ -20,26 +25,30 @@ export default function Room() {
         const handleOnChunkDelivered = (chunk_no: number) => {
             // console.log(send_files);
             if (!peer || send_files.length <= 0) return;
-            send_files[0].sent_percentage = peer.file_handlers.sent_percentage;
-            // console.log(peer.file_handlers.sent_percentage);
-            setValue(Math.random())
+            send_files[0].sent_percentage = peer.file_handler.sent_percentage;
+            // console.log(peer.file_handler.sent_percentage);
+            setValue(Math.random());
+            // console.log("max slice time = " + peer.file_handler.max_slice_time);
+            // console.log("Max to buffer time = " + peer.file_handler.max_to_buffer_time);
+
         }
 
         const handleOnNewFile = (file_info: FileInfo) => {
             recv_files = [{ file_info: file_info, recv_percentage: 0 }].concat(recv_files);
             setValue(Math.random())
             // console.log(recv_files);
-
         }
         const handleOnFileChunkReceived = (file_info: FileInfo) => {
             if (!peer || recv_files.length <= 0) return;
-            recv_files[0].recv_percentage = peer.file_handlers.recv_percentage;
+            recv_files[0].recv_percentage = peer.file_handler.recv_percentage;
             // console.log(peer.file_handlers.recv_percentage);
-            setValue(Math.random())
+            setValue(Math.random());
+            // console.log("max slice time = " + peer.file_handler.max_slice_time);
         }
-        peer.file_handlers.onChunkDelivered = handleOnChunkDelivered;
-        peer.file_handlers.onNewFile = handleOnNewFile;
-        peer.file_handlers.onChunkReceived = handleOnFileChunkReceived;
+            // console.log("Max to buffer time = " + peer.file_handler.max_to_buffer_time);
+        peer.file_handler.onChunkDelivered = handleOnChunkDelivered;
+        peer.file_handler.onNewFile = handleOnNewFile;
+        peer.file_handler.onChunkReceived = handleOnFileChunkReceived;
         //* Runs on joiner
         Events.on('on-previous-user', (user: { detail: User }) => {
             // console.log(peer?.server_conn.room_id);
@@ -64,9 +73,10 @@ export default function Room() {
     return (
         <>
             <section className='bg-[#f8f8f8f8]  w-screen h-screen flex items-center'>
+         
                 {!connected &&
                     <div className='container flex items-center justify-center mx-auto  my-auto'>
-                        <div className=' w-[80%] lg:w-1/2 px-10  py-5 rounded-lg shadow-lg  dark:bg-gray-700 bg-white flex flex-col '>
+                        <div className=' w-[80%] lg:w-1/2 px-10  py-5 rounded-lg shadow-lg   bg-white flex flex-col '>
                             <>
                                 <span className='flex  items-center gap-2  my-4 '>
                                     <h2 className='font-medium text-[#333333] text-xl my-3'>
@@ -79,7 +89,7 @@ export default function Room() {
                             </>
                             <svg
                                 role="status"
-                                className={`inline w-8 h-8 mr-2 text-gray-200 animate-spin dark:text-gray-600 fill-green-500 self-center block`}
+                                className={`inline w-8 h-8 mr-2 text-gray-200 animate-spin  fill-green-500 self-center `}
                                 viewBox="0 0 100 101"
                                 fill="none"
                                 xmlns="http://www.w3.org/2000/svg"

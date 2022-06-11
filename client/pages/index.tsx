@@ -1,9 +1,12 @@
 import { useRouter } from 'next/router'
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 export default function Home() {
   const router = useRouter();
   const [create_popup, setCreatePopup] = useState<"hidden" | "flex">('hidden');
   const [join_popup, setJoinPopup] = useState<"hidden" | "flex">('hidden');
+
+
+
   const create = () => {
     let name_ele = document.getElementById('create-name') as HTMLInputElement;
     if (!name_ele) return;
